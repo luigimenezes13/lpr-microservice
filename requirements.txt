@@ -1,0 +1,9 @@
+picamera2
+opencv-python-headless
+ultralytics
+paddleocr
+paddlepaddle
+numpy
+requests
+pydantic
+pydantic-settings
