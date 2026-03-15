@@ -120,10 +120,13 @@ No Raspberry Pi, crie o ambiente virtual:
 cd ~/lpr
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
 O flag `--system-site-packages` garante acesso ao `picamera2` instalado via apt.
+Se o `pip install -r requirements.txt` falhar por causa de `picamera2`, remova `picamera2`
+do `requirements.txt` (no Raspberry Pi, use preferencialmente o pacote via `apt`).
 
 ### 7. Calibrar as vagas
 
@@ -143,7 +146,13 @@ scp seu-usuario@lpr.local:~/lpr/referencia.jpg .
 ```
 
 4. Identifique as coordenadas **(x, y, largura, altura)** de cada vaga na imagem
-5. Defina as regiões via variáveis de ambiente ou diretamente em `config.py`
+5. Defina as regiões via variáveis de ambiente (JSON) ou diretamente em `config.py`.
+   Exemplo com variáveis de ambiente:
+
+```bash
+export LPR_SPOT_A='{"x":0,"y":0,"width":2304,"height":2592}'
+export LPR_SPOT_B='{"x":2304,"y":0,"width":2304,"height":2592}'
+```
 
 ### 8. Executar
 
@@ -166,7 +175,8 @@ Crie um serviço systemd para iniciar automaticamente:
 sudo tee /etc/systemd/system/lpr.service << 'EOF'
 [Unit]
 Description=LPR Parking Monitor
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 User=seu-usuario
