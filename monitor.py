@@ -1,6 +1,8 @@
 import logging
 import time
+import json
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from camera import Camera, CapturedFrame
 from config import settings, SpotRegion
@@ -8,6 +10,7 @@ from detector import Detector, DetectionResult
 from notifier import Notifier
 
 logger = logging.getLogger(__name__)
+recognition_logger = logging.getLogger("lpr.recognition")
 
 
 @dataclass
@@ -52,6 +55,7 @@ class ParkingMonitor:
         for spot in self.spots:
             spot_image = self._crop_spot(frame, spot.region)
             result = self.detector.detect(spot_image)
+            self._log_recognition_heartbeat(spot, result)
             self._handle_detection(spot, result)
 
     def _crop_spot(self, frame: CapturedFrame, region: SpotRegion):
@@ -98,3 +102,25 @@ class ParkingMonitor:
         self.notifier.notify_vehicle_departed(spot.spot_id)
         spot.occupied = False
         spot.current_plate = None
+
+    def _log_recognition_heartbeat(self, spot: SpotState, result: DetectionResult):
+        if not settings.recognition_heartbeat_enabled:
+            return
+
+        plate_text = None
+        plate_confidence = 0.0
+
+        if result.plate:
+            plate_text = result.plate.text
+            plate_confidence = result.plate.confidence
+
+        payload = {
+            "event": "recognition_heartbeat",
+            "timestamp": datetime.now().isoformat(),
+            "spot_id": spot.spot_id,
+            "vehicle_detected": result.vehicle_detected,
+            "plate": plate_text,
+            "confidence": plate_confidence,
+        }
+
+        recognition_logger.info("%s", json.dumps(payload, ensure_ascii=True))

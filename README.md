@@ -212,12 +212,26 @@ Todas as configurações são feitas via variáveis de ambiente com o prefixo `L
 | `LPR_PLATE_CONFIDENCE_THRESHOLD` | `0.6` | Confiança mínima para leitura de placa |
 | `LPR_CAMERA_RESOLUTION_WIDTH` | `4056` | Largura da captura |
 | `LPR_CAMERA_RESOLUTION_HEIGHT` | `3040` | Altura da captura |
+| `LPR_RECOGNITION_HEARTBEAT_ENABLED` | `true` | Habilita log de heartbeat de reconhecimento por vaga em cada ciclo |
+| `LPR_RECOGNITION_LOG_LEVEL` | `INFO` | Nível do logger `lpr.recognition` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
 
 Para o Camera Module 3 Wide, ajuste a resolução:
 
 ```bash
 export LPR_CAMERA_RESOLUTION_WIDTH=4608
 export LPR_CAMERA_RESOLUTION_HEIGHT=2592
+```
+
+### Consultar eventos de reconhecimento no journald
+
+Com o serviço rodando via `systemd`, os heartbeats de reconhecimento ficam no `journald`.
+
+```bash
+# Fluxo completo do serviço
+journalctl -u lpr.service -f
+
+# Somente eventos de reconhecimento
+journalctl -u lpr.service -f | rg "lpr.recognition"
 ```
 
 ## Eventos enviados

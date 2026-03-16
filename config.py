@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel
+from typing import Literal
 
 
 class SpotRegion(BaseModel):
@@ -24,6 +25,8 @@ class Settings(BaseSettings):
 
     api_base_url: str = "http://localhost:8000"
     api_timeout_seconds: int = 10
+    recognition_heartbeat_enabled: bool = True
+    recognition_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
     model_config = {"env_prefix": "LPR_"}
 
