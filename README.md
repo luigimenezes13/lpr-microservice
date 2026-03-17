@@ -62,9 +62,10 @@ ssh seu-usuario@lpr.local
 sudo apt update && sudo apt full-upgrade -y
 ```
 
-4. Aumente o swap (necessário para compilar PaddlePaddle com 4 GB de RAM):
+4. Instale e configure o swap (necessário para compilar PaddlePaddle com 4 GB de RAM):
 
 ```bash
+sudo apt install -y dphys-swapfile
 sudo dphys-swapfile swapoff
 sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=2048/' /etc/dphys-swapfile
 sudo dphys-swapfile setup
@@ -82,27 +83,32 @@ sudo reboot
 Reconecte via SSH e execute:
 
 ```bash
-libcamera-hello --timeout 5000
+sudo apt install -y libcamera-apps
+rpicam-hello --timeout 5000
 ```
 
 Se não houver erro, a câmera está funcionando. Capture uma imagem de teste:
 
 ```bash
-libcamera-still -o teste.jpg
+rpicam-still -o teste.jpg
 ```
 
 Para conferir o sensor detectado e as resoluções disponíveis:
 
 ```bash
-libcamera-still --list-cameras
+rpicam-hello --list-cameras
 ```
 
 O Camera Module 3 Wide (IMX708) suporta resolução máxima de **4608x2592**.
 
+> Em imagens mais novas (Bookworm/Trixie), os comandos corretos são `rpicam-*`.
+> Em imagens antigas, você pode encontrar os comandos legados `libcamera-*`.
+
 ### 5. Instalar dependências
 
 ```bash
-sudo apt install -y python3-pip python3-venv python3-picamera2 libcamera-dev \
+sudo apt install -y python3-pip python3-venv python3-picamera2 \
+    rpicam-apps dphys-swapfile libcamera-dev \
     libatlas-base-dev libopenblas-dev libjpeg-dev zlib1g-dev
 ```
 
@@ -135,7 +141,7 @@ do `requirements.txt` (no Raspberry Pi, use preferencialmente o pacote via `apt`
 
 ```bash
 source .venv/bin/activate
-libcamera-still -o referencia.jpg --width 4608 --height 2592
+rpicam-still -o referencia.jpg --width 4608 --height 2592
 ```
 
 3. Copie para o seu computador e abra num editor de imagens:
