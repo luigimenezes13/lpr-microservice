@@ -137,6 +137,21 @@ O flag `--system-site-packages` garante acesso ao `picamera2` instalado via apt.
 Se o `pip install -r requirements.txt` falhar por causa de `picamera2`, remova `picamera2`
 do `requirements.txt` (no Raspberry Pi, use preferencialmente o pacote via `apt`).
 
+Se ocorrer `OSError: [Errno 28] No space left on device`, libere cache e tente novamente:
+
+```bash
+sudo raspi-config nonint do_expand_rootfs
+sudo reboot
+```
+e então
+```bash
+sudo apt clean
+sudo apt autoremove -y
+rm -rf ~/.cache/pip
+mkdir -p ~/tmp
+TMPDIR=~/tmp pip install --no-cache-dir -r requirements.txt
+```
+
 ### 7. Calibrar as vagas
 
 1. Posicione a câmera no local definitivo
