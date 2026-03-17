@@ -109,8 +109,11 @@ O Camera Module 3 Wide (IMX708) suporta resolução máxima de **4608x2592**.
 ```bash
 sudo apt install -y python3-pip python3-venv python3-picamera2 \
     rpicam-apps dphys-swapfile libcamera-dev \
-    libatlas-base-dev libopenblas-dev libjpeg-dev zlib1g-dev
+    libopenblas-dev libjpeg-dev zlib1g-dev
 ```
+
+> No Debian Trixie, `libatlas-base-dev` pode não estar disponível.
+> Para este projeto, `libopenblas-dev` já atende as dependências BLAS.
 
 ### 6. Clonar o projeto e criar o ambiente virtual
 
