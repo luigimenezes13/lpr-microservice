@@ -93,7 +93,7 @@ def main() -> int:
         return 1
 
     imagem = reduzir_imagem(imagem, argumentos.lado_maximo)
-    ocr = PaddleOCR(use_textline_orientation=True, lang="en")
+    ocr = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
     try:
         linhas_detectadas = extrair_textos(ocr, imagem)
     except Exception as erro:
