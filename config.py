@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     spot_b: SpotRegion = SpotRegion(x=2304, y=0, width=2304, height=2592)
     spot_b_enabled: bool = False
 
-    vehicle_model_path: str = "yolov8n.pt"
+    vehicle_model_path: str = "recognition/yolov8n.pt"
     vehicle_confidence_threshold: float = 0.5
 
     plate_confidence_threshold: float = 0.6
