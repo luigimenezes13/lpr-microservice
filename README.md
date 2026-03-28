@@ -194,29 +194,11 @@ Você verá nos logs:
 
 ### 9. (Opcional) Rodar como serviço no boot
 
-Crie um serviço systemd para iniciar automaticamente:
+O projeto inclui um instalador pronto para criar e habilitar o serviço:
 
 ```bash
-sudo tee /etc/systemd/system/lpr.service << 'EOF'
-[Unit]
-Description=LPR Parking Monitor
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-User=seu-usuario
-WorkingDirectory=/home/seu-usuario/lpr
-ExecStart=/home/seu-usuario/lpr/.venv/bin/python main.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable lpr.service
-sudo systemctl start lpr.service
+cd ~/lpr
+./scripts/install_systemd_service.sh
 ```
 
 Para acompanhar os logs em tempo real:
