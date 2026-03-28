@@ -11,13 +11,15 @@ class SpotRegion(BaseModel):
 
 
 class Settings(BaseSettings):
-    camera_resolution_width: int = 4056
-    camera_resolution_height: int = 3040
+    camera_resolution_width: int = 4608
+    camera_resolution_height: int = 2592
     capture_interval_seconds: int = 5
 
-    spot_a: SpotRegion = SpotRegion(x=0, y=0, width=2028, height=3040)
-    spot_b: SpotRegion = SpotRegion(x=2028, y=0, width=2028, height=3040)
-    spot_b_enabled: bool = True
+    # Coordenadas calibradas para a vaga unica com base na imagem de referencia
+    # (proporcao 16:9, equivalente a captura 4608x2592).
+    spot_a: SpotRegion = SpotRegion(x=1350, y=315, width=2790, height=2277)
+    spot_b: SpotRegion = SpotRegion(x=2304, y=0, width=2304, height=2592)
+    spot_b_enabled: bool = False
 
     vehicle_model_path: str = "yolov8n.pt"
     vehicle_confidence_threshold: float = 0.5
