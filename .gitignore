@@ -31,4 +31,4 @@ Thumbs.db
 *~
 
 # Modelos de inferencia locais
-recognition/yolov8n.pt
+# recognition/yolov8n.pt
