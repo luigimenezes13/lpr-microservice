@@ -1,8 +1,8 @@
 import logging
 import sys
 
-from config import settings
-from monitor import ParkingMonitor
+from vehicle.main import run_monitor_forever
+from vehicle.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,8 +22,7 @@ def _configure_recognition_logger():
 def main():
     _configure_recognition_logger()
     logger.info("Iniciando LPR Parking Monitor...")
-    monitor = ParkingMonitor()
-    monitor.start()
+    run_monitor_forever()
 
 
 if __name__ == "__main__":

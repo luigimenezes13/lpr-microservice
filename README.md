@@ -10,6 +10,78 @@ Sistema embarcado de visão computacional que monitora vagas de estacionamento e
 - Reconhece placas no padrão brasileiro (7 caracteres)
 - Envia eventos ACL para uma API REST: `vehicle.entered`, `spot.occupied`, `spot.released`, `vehicle.exited`
 
+## Arquitetura recomendada (híbrida)
+
+Para contornar limitações de inferência no Raspberry Pi, o projeto suporta execução em dois serviços:
+
+- `vehicle` no Raspberry Pi: captura de câmera, recorte de vaga, máquina de estado e emissão de eventos.
+- `recognition` em máquina remota (ex.: notebook/WSL): inferência de presença de veículo e OCR.
+
+Comunicação:
+
+- `vehicle` chama `recognition` por HTTP síncrono:
+  - `POST /recognition/frame-presence`
+  - `POST /recognition/spot`
+- `vehicle` continua enviando eventos ACL para `{LPR_API_BASE_URL}/events`.
+
+### Subir `recognition` na máquina remota
+
+```bash
+cd ~/tcc/lpr
+source .venv/bin/activate
+uvicorn recognition.main:get_app --factory --host 0.0.0.0 --port 9000
+```
+
+### Subir `recognition` com Docker
+
+Build da imagem:
+
+```bash
+cd ~/tcc/lpr
+docker build -f recognition/Dockerfile -t lpr-recognition:latest .
+```
+
+Execução do container:
+
+```bash
+docker run --rm \
+  -p 9000:9000 \
+  -e RECOGNITION_VEHICLE_CONFIDENCE_THRESHOLD=0.5 \
+  -e RECOGNITION_PLATE_CONFIDENCE_THRESHOLD=0.6 \
+  lpr-recognition:latest
+```
+
+Se quiser usar um modelo local diferente, monte o arquivo e ajuste a variável:
+
+```bash
+docker run --rm \
+  -p 9000:9000 \
+  -v /caminho/local/modelo.pt:/models/modelo.pt:ro \
+  -e RECOGNITION_VEHICLE_MODEL_PATH=/models/modelo.pt \
+  lpr-recognition:latest
+```
+
+### Configurar `vehicle` no Raspberry Pi para usar serviço remoto
+
+```bash
+export LPR_RECOGNITION_SERVICE_BASE_URL=http://IP_DA_MAQUINA_REMOTA:9000
+export LPR_RECOGNITION_REQUEST_TIMEOUT_SECONDS=8
+```
+
+Teste de conectividade a partir do Raspberry:
+
+```bash
+curl http://IP_DA_MAQUINA_REMOTA:9000/health
+```
+
+### Smoke test híbrido no Raspberry Pi
+
+```bash
+cd ~/lpr
+source .venv/bin/activate
+./scripts/smoke_test_raspberry.sh
+```
+
 ## Hardware necessário
 
 | Componente | Especificação |
@@ -170,13 +242,13 @@ rpicam-still -o referencia.jpg --width 4608 --height 2592
 scp seu-usuario@lpr.local:~/lpr/referencia.jpg .
 ```
 
-4. Identifique as coordenadas **(x, y, largura, altura)** de cada vaga na imagem
+4. Identifique as coordenadas **(x, y, largura, altura)** da vaga na imagem
 5. Defina as regiões via variáveis de ambiente (JSON) ou diretamente em `config.py`.
-   Exemplo com variáveis de ambiente:
+   Exemplo com variáveis de ambiente para uma vaga unica:
 
 ```bash
-export LPR_SPOT_A='{"x":0,"y":0,"width":2304,"height":2592}'
-export LPR_SPOT_B='{"x":2304,"y":0,"width":2304,"height":2592}'
+export LPR_SPOT_A='{"x":1350,"y":315,"width":2790,"height":2277}'
+export LPR_SPOT_B_ENABLED=false
 ```
 
 ### 8. Executar
@@ -189,34 +261,16 @@ python main.py
 
 Você verá nos logs:
 - `Camera iniciada`
-- `Monitor iniciado — 2 vagas configuradas`
+- `Monitor iniciado — 1 vaga configurada`
 - Detecções a cada intervalo configurado
 
 ### 9. (Opcional) Rodar como serviço no boot
 
-Crie um serviço systemd para iniciar automaticamente:
+O projeto inclui um instalador pronto para criar e habilitar o serviço:
 
 ```bash
-sudo tee /etc/systemd/system/lpr.service << 'EOF'
-[Unit]
-Description=LPR Parking Monitor
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-User=seu-usuario
-WorkingDirectory=/home/seu-usuario/lpr
-ExecStart=/home/seu-usuario/lpr/.venv/bin/python main.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable lpr.service
-sudo systemctl start lpr.service
+cd ~/lpr
+./scripts/install_systemd_service.sh
 ```
 
 Para acompanhar os logs em tempo real:
@@ -235,16 +289,17 @@ Todas as configurações são feitas via variáveis de ambiente com o prefixo `L
 | `LPR_API_BASE_URL` | `http://localhost:8000` | URL da API que recebe os eventos |
 | `LPR_VEHICLE_CONFIDENCE_THRESHOLD` | `0.5` | Confiança mínima para detectar veículo |
 | `LPR_PLATE_CONFIDENCE_THRESHOLD` | `0.6` | Confiança mínima para leitura de placa |
-| `LPR_SPOT_B_ENABLED` | `true` | Habilita ou desabilita a vaga `B` (permite rodar com 1 ou 2 vagas) |
+| `LPR_SPOT_B_ENABLED` | `false` | Habilita ou desabilita a vaga `B` (permite rodar com 1 ou 2 vagas) |
 | `LPR_TRANSIT_CONFIRMATION_CYCLES` | `2` | Quantidade de ciclos sem veículo no frame para confirmar `vehicle.exited` |
-| `LPR_CAMERA_RESOLUTION_WIDTH` | `4056` | Largura da captura |
-| `LPR_CAMERA_RESOLUTION_HEIGHT` | `3040` | Altura da captura |
+| `LPR_CAMERA_RESOLUTION_WIDTH` | `4608` | Largura da captura |
+| `LPR_CAMERA_RESOLUTION_HEIGHT` | `2592` | Altura da captura |
 | `LPR_RECOGNITION_HEARTBEAT_ENABLED` | `true` | Habilita log de heartbeat de reconhecimento por vaga em cada ciclo |
 | `LPR_RECOGNITION_LOG_LEVEL` | `INFO` | Nível do logger `lpr.recognition` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
 
 Exemplo para operar com apenas uma vaga:
 
 ```bash
+export LPR_SPOT_A='{"x":1350,"y":315,"width":2790,"height":2277}'
 export LPR_SPOT_B_ENABLED=false
 ```
 
@@ -319,10 +374,11 @@ Fluxo de negócio no monitor:
 ## Arquitetura
 
 ```
-main.py            → Ponto de entrada
-monitor.py         → Loop principal, coordena presença no pátio e detecção por vaga
-camera.py          → Abstração sobre picamera2
-detector.py        → YOLOv8 (presença no pátio + veículos por vaga) + PaddleOCR (placas)
-notifier.py        → Envio de eventos ACL HTTP para a API
-config.py          → Variáveis de ambiente via pydantic-settings
+main.py                                 → Entrada do monitor contínuo no Raspberry
+vehicle/domain/parking_monitor.py       → Máquina de estado do estacionamento
+vehicle/infrastructure/camera_picamera2.py → Captura no Pi
+vehicle/infrastructure/recognition_http_gateway.py → Cliente HTTP para serviço recognition
+recognition/main.py                     → Serviço FastAPI de inferência remota
+recognition/infrastructure/model_runtime.py → YOLO + PaddleOCR
+shared/recognition_contract.py          → DTOs de contrato entre os serviços
 ```

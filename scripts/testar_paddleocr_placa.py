@@ -4,7 +4,13 @@ import re
 import sys
 
 import cv2
-from paddleocr import PaddleOCR
+
+try:
+    from paddleocr import PaddleOCR
+except ImportError as error:
+    raise SystemExit(
+        "PaddleOCR nao esta instalado. Ative o ambiente virtual e rode: pip install -r requirements.txt"
+    ) from error
 
 PADRAO_PLACA_ANTIGO = re.compile(r"^[A-Z]{3}[0-9]{4}$")
 PADRAO_PLACA_MERCOSUL = re.compile(r"^[A-Z]{3}[0-9][A-Z][0-9]{2}$")
@@ -51,6 +57,33 @@ def reduzir_imagem(imagem, lado_maximo: int):
     return cv2.resize(imagem, (nova_largura, nova_altura), interpolation=cv2.INTER_AREA)
 
 
+def extrair_textos(ocr, imagem):
+    if hasattr(ocr, "predict"):
+        try:
+            resultado = ocr.predict(imagem)
+            if resultado and isinstance(resultado[0], dict):
+                textos = resultado[0].get("rec_texts", [])
+                confiancas = resultado[0].get("rec_scores", [])
+                return list(zip(textos, confiancas))
+        except Exception:
+            pass
+
+    try:
+        resultado_legado = ocr.ocr(imagem, cls=True)
+    except TypeError:
+        resultado_legado = ocr.ocr(imagem)
+
+    if not resultado_legado or not resultado_legado[0]:
+        return []
+
+    linhas = []
+    for linha in resultado_legado[0]:
+        texto_original = linha[1][0]
+        confianca = float(linha[1][1])
+        linhas.append((texto_original, confianca))
+    return linhas
+
+
 def main() -> int:
     argumentos = criar_argumentos()
     imagem = cv2.imread(argumentos.imagem)
@@ -60,20 +93,25 @@ def main() -> int:
         return 1
 
     imagem = reduzir_imagem(imagem, argumentos.lado_maximo)
-
     ocr = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
-    resultado = ocr.ocr(imagem, cls=True)
+    try:
+        linhas_detectadas = extrair_textos(ocr, imagem)
+    except Exception as erro:
+        print("Falha ao executar o PaddleOCR neste ambiente.")
+        print(f"Erro original: {erro}")
+        print(
+            "Dica: em alguns ambientes, o PaddleOCR funciona melhor com Python 3.10/3.11 e versoes compativeis de paddlepaddle."
+        )
+        return 2
 
-    if not resultado or not resultado[0]:
+    if not linhas_detectadas:
         print("Nenhum texto detectado na imagem.")
         return 0
 
     print(f"\nTexto detectado em: {argumentos.imagem}")
     candidatos_placa = []
 
-    for indice, linha in enumerate(resultado[0], start=1):
-        texto_original = linha[1][0]
-        confianca = float(linha[1][1])
+    for indice, (texto_original, confianca) in enumerate(linhas_detectadas, start=1):
         texto_limpo = limpar_texto(texto_original)
         eh_placa = parece_placa_brasileira(texto_limpo)
 

@@ -1,20 +1,20 @@
 import numpy as np
 
 from camera import CapturedFrame
-from config import SpotRegion, settings
-from detector import DetectionResult, PlateReading
 from monitor import ParkingMonitor, SpotState
+from vehicle.domain.recognition_gateway import FramePresence, SpotRecognition
+from vehicle.settings import SpotRegion, settings
 
 
-class StubDetector:
+class StubRecognitionGateway:
     def __init__(self, frame_presence_sequence, spot_sequence):
         self._frame_presence_sequence = list(frame_presence_sequence)
         self._spot_sequence = list(spot_sequence)
 
-    def detect_vehicle_presence(self, frame_image):
+    def detect_frame_presence(self, frame_image):
         return self._frame_presence_sequence.pop(0)
 
-    def detect_spot(self, spot_image):
+    def detect_spot(self, spot_id, spot_image):
         return self._spot_sequence.pop(0)
 
 
@@ -49,21 +49,28 @@ def build_spot(spot_id: str, x: int):
 
 def test_monitor_happy_path_entered_occupied_released_exited(monkeypatch):
     monkeypatch.setattr(settings, "transit_confirmation_cycles", 2)
-    detector = StubDetector(
-        frame_presence_sequence=[True, True, True, False, False],
+    recognition_gateway = StubRecognitionGateway(
+        frame_presence_sequence=[
+            FramePresence(vehicle_detected=True, confidence=0.9),
+            FramePresence(vehicle_detected=True, confidence=0.9),
+            FramePresence(vehicle_detected=True, confidence=0.9),
+            FramePresence(vehicle_detected=False, confidence=0.0),
+            FramePresence(vehicle_detected=False, confidence=0.0),
+        ],
         spot_sequence=[
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(
                 vehicle_detected=True,
-                plate=PlateReading(text="ABC1D23", confidence=0.9),
+                plate="ABC1D23",
+                confidence=0.9,
             ),
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(vehicle_detected=False, plate=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
         ],
     )
     notifier = StubNotifier()
     monitor = ParkingMonitor(
-        detector=detector,
+        recognition_gateway=recognition_gateway,
         notifier=notifier,
         spots=[build_spot("A", 0)],
     )
@@ -81,16 +88,20 @@ def test_monitor_happy_path_entered_occupied_released_exited(monkeypatch):
 
 def test_monitor_vehicle_enters_and_exits_without_occupying(monkeypatch):
     monkeypatch.setattr(settings, "transit_confirmation_cycles", 2)
-    detector = StubDetector(
-        frame_presence_sequence=[True, False, False],
+    recognition_gateway = StubRecognitionGateway(
+        frame_presence_sequence=[
+            FramePresence(vehicle_detected=True, confidence=0.9),
+            FramePresence(vehicle_detected=False, confidence=0.0),
+            FramePresence(vehicle_detected=False, confidence=0.0),
+        ],
         spot_sequence=[
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(vehicle_detected=False, plate=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
         ],
     )
     notifier = StubNotifier()
     monitor = ParkingMonitor(
-        detector=detector,
+        recognition_gateway=recognition_gateway,
         notifier=notifier,
         spots=[build_spot("A", 0)],
     )
@@ -103,22 +114,28 @@ def test_monitor_vehicle_enters_and_exits_without_occupying(monkeypatch):
 
 def test_monitor_two_spots_with_transition_and_coherent_order(monkeypatch):
     monkeypatch.setattr(settings, "transit_confirmation_cycles", 2)
-    detector = StubDetector(
-        frame_presence_sequence=[True, True, True, False, False],
+    recognition_gateway = StubRecognitionGateway(
+        frame_presence_sequence=[
+            FramePresence(vehicle_detected=True, confidence=0.9),
+            FramePresence(vehicle_detected=True, confidence=0.9),
+            FramePresence(vehicle_detected=True, confidence=0.9),
+            FramePresence(vehicle_detected=False, confidence=0.0),
+            FramePresence(vehicle_detected=False, confidence=0.0),
+        ],
         spot_sequence=[
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(vehicle_detected=True, plate=None),
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(vehicle_detected=True, plate=None),
-            DetectionResult(vehicle_detected=False, plate=None),
-            DetectionResult(vehicle_detected=False, plate=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=True, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=True, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
+            SpotRecognition(vehicle_detected=False, plate=None, confidence=None),
         ],
     )
     notifier = StubNotifier()
     monitor = ParkingMonitor(
-        detector=detector,
+        recognition_gateway=recognition_gateway,
         notifier=notifier,
         spots=[build_spot("A", 0), build_spot("B", 100)],
     )

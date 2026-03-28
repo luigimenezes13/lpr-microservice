@@ -4,7 +4,7 @@ import types
 import numpy as np
 
 from camera import Camera
-from config import settings
+from vehicle.settings import settings
 
 
 class FakePicamera2:

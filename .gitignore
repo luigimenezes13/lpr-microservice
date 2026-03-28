@@ -29,3 +29,5 @@ Thumbs.db
 *.swp
 *.swo
 *~
+# Modelos de inferencia locais
+# recognition/yolov8n.pt

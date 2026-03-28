@@ -1,5 +1,5 @@
-import notifier
 from notifier import Notifier
+from vehicle.infrastructure import event_notifier_http
 
 
 class FakeResponse:
@@ -8,7 +8,7 @@ class FakeResponse:
 
     def raise_for_status(self):
         if self.should_fail:
-            raise notifier.requests.HTTPError("bad status")
+            raise event_notifier_http.requests.HTTPError("bad status")
 
 
 def test_notifier_sends_all_acl_events(monkeypatch):
@@ -18,9 +18,9 @@ def test_notifier_sends_all_acl_events(monkeypatch):
         sent_payloads.append((url, json, timeout))
         return FakeResponse()
 
-    monkeypatch.setattr(notifier.requests, "post", fake_post)
-    monkeypatch.setattr(notifier.settings, "api_base_url", "http://api.test")
-    monkeypatch.setattr(notifier.settings, "api_timeout_seconds", 3)
+    monkeypatch.setattr(event_notifier_http.requests, "post", fake_post)
+    monkeypatch.setattr(event_notifier_http.settings, "api_base_url", "http://api.test")
+    monkeypatch.setattr(event_notifier_http.settings, "api_timeout_seconds", 3)
 
     gateway = Notifier()
     gateway.notify_vehicle_entered()
@@ -47,7 +47,7 @@ def test_notifier_handles_http_failure_without_raising(monkeypatch):
     def fake_post(url, json, timeout):
         return FakeResponse(should_fail=True)
 
-    monkeypatch.setattr(notifier.requests, "post", fake_post)
+    monkeypatch.setattr(event_notifier_http.requests, "post", fake_post)
     gateway = Notifier()
 
     gateway.notify_vehicle_entered()
