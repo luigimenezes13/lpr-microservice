@@ -1,0 +1,31 @@
+# Ambientes virtuais
+.venv/*
+.venv_py312_backup/*
+venv/
+
+# Cache e metadados locais
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Configuracoes locais de ferramentas
+.cache/*
+.config/
+.cursor/
+
+# Artefatos baixados dinamicamente pelo PaddleOCR/PaddleX
+.paddleocr/
+.paddlex/
+
+# Arquivos temporarios do sistema/editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
