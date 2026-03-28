@@ -2,8 +2,15 @@ import logging
 from dataclasses import dataclass
 
 import numpy as np
-from ultralytics import YOLO
-from paddleocr import PaddleOCR
+try:
+    from ultralytics import YOLO
+except ImportError:
+    YOLO = None
+
+try:
+    from paddleocr import PaddleOCR
+except ImportError:
+    PaddleOCR = None
 
 from config import settings
 
@@ -26,6 +33,8 @@ class DetectionResult:
 
 class VehicleDetector:
     def __init__(self):
+        if YOLO is None:
+            raise RuntimeError("Ultralytics YOLO nao esta instalado no ambiente.")
         self._model = YOLO(settings.vehicle_model_path)
         logger.info("Modelo YOLO carregado: %s", settings.vehicle_model_path)
 
@@ -50,6 +59,8 @@ class VehicleDetector:
 
 class PlateReader:
     def __init__(self):
+        if PaddleOCR is None:
+            raise RuntimeError("PaddleOCR nao esta instalado no ambiente.")
         self._ocr = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
         logger.info("PaddleOCR inicializado")
 
@@ -94,9 +105,15 @@ class Detector:
         self._vehicle_detector = VehicleDetector()
         self._plate_reader = PlateReader()
 
-    def detect(self, spot_image: np.ndarray) -> DetectionResult:
+    def detect_vehicle_presence(self, frame_image: np.ndarray) -> bool:
+        return self._vehicle_detector.has_vehicle(frame_image)
+
+    def detect_spot(self, spot_image: np.ndarray) -> DetectionResult:
         if not self._vehicle_detector.has_vehicle(spot_image):
             return DetectionResult(vehicle_detected=False, plate=None)
 
         plate = self._plate_reader.read_plate(spot_image)
         return DetectionResult(vehicle_detected=True, plate=plate)
+
+    def detect(self, spot_image: np.ndarray) -> DetectionResult:
+        return self.detect_spot(spot_image)

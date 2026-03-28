@@ -9,11 +9,25 @@ logger = logging.getLogger(__name__)
 
 
 class Notifier:
-    def notify_vehicle_parked(
-        self, spot_id: str, plate: str, confidence: float
+    def notify_vehicle_entered(self):
+        payload = {
+            "event": "vehicle.entered",
+            "timestamp": datetime.now().isoformat(),
+        }
+        self._send(payload)
+
+    def notify_vehicle_exited(self):
+        payload = {
+            "event": "vehicle.exited",
+            "timestamp": datetime.now().isoformat(),
+        }
+        self._send(payload)
+
+    def notify_spot_occupied(
+        self, spot_id: str, plate: str | None, confidence: float
     ):
         payload = {
-            "event": "vehicle_parked",
+            "event": "spot.occupied",
             "spot_id": spot_id,
             "plate": plate,
             "confidence": confidence,
@@ -21,20 +35,10 @@ class Notifier:
         }
         self._send(payload)
 
-    def notify_vehicle_departed(self, spot_id: str):
+    def notify_spot_released(self, spot_id: str):
         payload = {
-            "event": "vehicle_departed",
+            "event": "spot.released",
             "spot_id": spot_id,
-            "timestamp": datetime.now().isoformat(),
-        }
-        self._send(payload)
-
-    def notify_vehicle_parked_without_plate(self, spot_id: str):
-        payload = {
-            "event": "vehicle_parked",
-            "spot_id": spot_id,
-            "plate": None,
-            "confidence": 0.0,
             "timestamp": datetime.now().isoformat(),
         }
         self._send(payload)

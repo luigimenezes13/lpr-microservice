@@ -5,9 +5,10 @@ Sistema embarcado de visão computacional que monitora vagas de estacionamento e
 ## O que este projeto faz
 
 - Captura imagens periódicas da câmera
+- Detecta presença de veículo no pátio (frame inteiro)
 - Detecta presença de veículos em cada vaga (carro, moto, ônibus, caminhão)
 - Reconhece placas no padrão brasileiro (7 caracteres)
-- Envia eventos de entrada e saída para uma API REST
+- Envia eventos ACL para uma API REST: `vehicle.entered`, `spot.occupied`, `spot.released`, `vehicle.exited`
 
 ## Hardware necessário
 
@@ -234,10 +235,18 @@ Todas as configurações são feitas via variáveis de ambiente com o prefixo `L
 | `LPR_API_BASE_URL` | `http://localhost:8000` | URL da API que recebe os eventos |
 | `LPR_VEHICLE_CONFIDENCE_THRESHOLD` | `0.5` | Confiança mínima para detectar veículo |
 | `LPR_PLATE_CONFIDENCE_THRESHOLD` | `0.6` | Confiança mínima para leitura de placa |
+| `LPR_SPOT_B_ENABLED` | `true` | Habilita ou desabilita a vaga `B` (permite rodar com 1 ou 2 vagas) |
+| `LPR_TRANSIT_CONFIRMATION_CYCLES` | `2` | Quantidade de ciclos sem veículo no frame para confirmar `vehicle.exited` |
 | `LPR_CAMERA_RESOLUTION_WIDTH` | `4056` | Largura da captura |
 | `LPR_CAMERA_RESOLUTION_HEIGHT` | `3040` | Altura da captura |
 | `LPR_RECOGNITION_HEARTBEAT_ENABLED` | `true` | Habilita log de heartbeat de reconhecimento por vaga em cada ciclo |
 | `LPR_RECOGNITION_LOG_LEVEL` | `INFO` | Nível do logger `lpr.recognition` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
+
+Exemplo para operar com apenas uma vaga:
+
+```bash
+export LPR_SPOT_B_ENABLED=false
+```
 
 Para o Camera Module 3 Wide, ajuste a resolução:
 
@@ -262,11 +271,25 @@ journalctl -u lpr.service -f | rg "lpr.recognition"
 
 O serviço envia `POST` para `{LPR_API_BASE_URL}/events` com os seguintes payloads:
 
-### Veículo estacionou (placa reconhecida)
+Fluxo de negócio no monitor:
+- `camera.recognized` (interno, não enviado para API)
+- `vehicle.entered` -> `spot.occupied`
+- `spot.released` -> `vehicle.exited`
+
+### Veículo entrou no pátio
 
 ```json
 {
-  "event": "vehicle_parked",
+  "event": "vehicle.entered",
+  "timestamp": "2026-02-22T14:30:00"
+}
+```
+
+### Vaga ocupada
+
+```json
+{
+  "event": "spot.occupied",
   "spot_id": "A",
   "plate": "ABC1D23",
   "confidence": 0.87,
@@ -274,24 +297,21 @@ O serviço envia `POST` para `{LPR_API_BASE_URL}/events` com os seguintes payloa
 }
 ```
 
-### Veículo estacionou (placa não reconhecida)
+### Vaga liberada
 
 ```json
 {
-  "event": "vehicle_parked",
-  "spot_id": "A",
-  "plate": null,
-  "confidence": 0.0,
-  "timestamp": "2026-02-22T14:30:00"
+  "event": "spot.released",
+  "spot_id": "B",
+  "timestamp": "2026-02-22T15:00:00"
 }
 ```
 
-### Veículo saiu
+### Veículo saiu do pátio
 
 ```json
 {
-  "event": "vehicle_departed",
-  "spot_id": "B",
+  "event": "vehicle.exited",
   "timestamp": "2026-02-22T15:00:00"
 }
 ```
@@ -300,9 +320,9 @@ O serviço envia `POST` para `{LPR_API_BASE_URL}/events` com os seguintes payloa
 
 ```
 main.py            → Ponto de entrada
-monitor.py         → Loop principal, coordena captura e detecção por vaga
+monitor.py         → Loop principal, coordena presença no pátio e detecção por vaga
 camera.py          → Abstração sobre picamera2
-detector.py        → YOLOv8 (veículos) + PaddleOCR (placas)
-notifier.py        → Envio de eventos HTTP para a API
+detector.py        → YOLOv8 (presença no pátio + veículos por vaga) + PaddleOCR (placas)
+notifier.py        → Envio de eventos ACL HTTP para a API
 config.py          → Variáveis de ambiente via pydantic-settings
 ```
